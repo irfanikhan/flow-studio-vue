@@ -16,7 +16,9 @@ export const useUiStore = defineStore('ui', {
      */
     record(workflow) {
       this.past.push(JSON.parse(JSON.stringify(workflow)))
-      if (this.past.length > 30) this.past.shift()
+      if (this.past.length > 30) {
+        this.past.shift()
+      }
       this.future = []
     },
     /**
@@ -26,8 +28,11 @@ export const useUiStore = defineStore('ui', {
      * @returns {object[]|null} The prior workflow, if one exists.
      */
     undo(current) {
-      if (!this.past.length) return null
+      if (!this.past.length) {
+        return null
+      }
       this.future.push(JSON.parse(JSON.stringify(current)))
+
       return this.past.pop()
     },
     /**
@@ -37,8 +42,11 @@ export const useUiStore = defineStore('ui', {
      * @returns {object[]|null} The next workflow, if one exists.
      */
     redo(current) {
-      if (!this.future.length) return null
+      if (!this.future.length) {
+        return null
+      }
       this.past.push(JSON.parse(JSON.stringify(current)))
+
       return this.future.pop()
     },
     /**

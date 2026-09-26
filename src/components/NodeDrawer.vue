@@ -68,9 +68,12 @@ function chooseAttachment() {
  */
 async function uploadAttachment(event) {
   const file = event.target.files?.[0]
-  if (!file) return
+  if (!file) {
+    return
+  }
   if (file.size > 2 * 1024 * 1024) {
     error.value = 'Choose a file smaller than 2 MB so it can be saved in this browser.'
+
     return
   }
   const url = await new Promise((resolve, reject) => {
@@ -110,17 +113,34 @@ function removePayload(item) {
  */
 function save() {
   error.value = ''
-  if (!form.name.trim()) return void (error.value = 'A title is required.')
-  if (!form.description.trim()) return void (error.value = 'A description is required.')
-  if (props.node.type === 'sendMessage' && texts.value.some((item) => !item.text.trim()))
-    return void (error.value = 'Message text cannot be empty.')
-  if (props.node.type === 'addComment' && !form.data.comment?.trim())
-    return void (error.value = 'A comment is required.')
+  if (!form.name.trim()) {
+    error.value = 'A title is required.'
+
+    return
+  }
+  if (!form.description.trim()) {
+    error.value = 'A description is required.'
+
+    return
+  }
+  if (props.node.type === 'sendMessage' && texts.value.some((item) => !item.text.trim())) {
+    error.value = 'Message text cannot be empty.'
+
+    return
+  }
+  if (props.node.type === 'addComment' && !form.data.comment?.trim()) {
+    error.value = 'A comment is required.'
+
+    return
+  }
   if (
     props.node.type === 'dateTime' &&
     form.data.times.some((time) => time.startTime >= time.endTime)
-  )
-    return void (error.value = 'Each start time must be before its end time.')
+  ) {
+    error.value = 'Each start time must be before its end time.'
+
+    return
+  }
   emit('save', {
     ...props.node,
     name: form.name.trim(),
@@ -135,8 +155,9 @@ function save() {
  * @returns {void}
  */
 function removeNode() {
-  if (window.confirm(`Delete “${props.node.name}”? Connected children will become unconnected.`))
+  if (window.confirm(`Delete “${props.node.name}”? Connected children will become unconnected.`)) {
     emit('delete', props.node.id)
+  }
 }
 </script>
 

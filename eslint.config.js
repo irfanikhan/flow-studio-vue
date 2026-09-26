@@ -19,4 +19,14 @@ export default [
     },
   },
   prettier,
+  {
+    files: ['**/*.{js,vue}'],
+    rules: {
+      curly: ['error', 'all'],
+      'padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: '*', next: 'return' },
+      ],
+    },
+  },
 ]

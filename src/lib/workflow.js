@@ -33,16 +33,27 @@ const INITIAL_POSITIONS = {
  * @returns {string} The description displayed on the canvas.
  */
 export function getDescription(node) {
-  if (node.description) return node.description
-  if (node.type === 'trigger') return 'Conversation opened'
-  if (node.type === 'dateTime') return `Business hours · ${node.data?.timezone || 'UTC'}`
-  if (node.type === 'dateTimeConnector')
+  if (node.description) {
+    return node.description
+  }
+  if (node.type === 'trigger') {
+    return 'Conversation opened'
+  }
+  if (node.type === 'dateTime') {
+    return `Business hours · ${node.data?.timezone || 'UTC'}`
+  }
+  if (node.type === 'dateTimeConnector') {
     return node.data?.connectorType === 'success'
       ? 'Within business hours'
       : 'Outside business hours'
-  if (node.type === 'addComment') return node.data?.comment || 'Add a note to the conversation'
-  if (node.type === 'sendMessage')
+  }
+  if (node.type === 'addComment') {
+    return node.data?.comment || 'Add a note to the conversation'
+  }
+  if (node.type === 'sendMessage') {
     return node.data?.payload?.find((item) => item.type === 'text')?.text || 'Send a message'
+  }
+
   return ''
 }
 
@@ -54,7 +65,10 @@ export function getDescription(node) {
  * @throws {Error} When the payload is not an array.
  */
 export function normalizeWorkflow(payload) {
-  if (!Array.isArray(payload)) throw new Error('The workflow payload must be an array.')
+  if (!Array.isArray(payload)) {
+    throw new Error('The workflow payload must be an array.')
+  }
+
   return payload.map((node) => ({
     ...node,
     id: String(node.id),
@@ -108,6 +122,7 @@ export function toFlowElements(workflow) {
         strokeWidth: 2,
       },
     }))
+
   return { nodes, edges }
 }
 
@@ -126,9 +141,12 @@ export function toFlowElements(workflow) {
 export function createNode({ title, description, type, parentId, position }) {
   const name = title.trim()
   const detail = description.trim()
-  if (!name || !detail) throw new Error('Title and description are required.')
-  if (!['sendMessage', 'addComment', 'dateTime'].includes(type))
+  if (!name || !detail) {
+    throw new Error('Title and description are required.')
+  }
+  if (!['sendMessage', 'addComment', 'dateTime'].includes(type)) {
     throw new Error('Choose a valid node type.')
+  }
   const data =
     type === 'sendMessage'
       ? { payload: [{ type: 'text', text: detail }] }
@@ -139,6 +157,7 @@ export function createNode({ title, description, type, parentId, position }) {
             timezone: 'UTC',
             action: 'businessHours',
           }
+
   return {
     id: crypto.randomUUID().slice(0, 8),
     parentId: parentId || -1,
@@ -207,7 +226,9 @@ export function getNewNodePosition(workflow, parentId) {
         Math.abs(node.position.x - position.x) < 300 &&
         Math.abs(node.position.y - position.y) < 210,
     )
-    if (!occupied) return position
+    if (!occupied) {
+      return position
+    }
   }
 
   return { x: originX, y: baseline + 260 }

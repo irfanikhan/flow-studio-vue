@@ -108,7 +108,9 @@ async function commit(next, message) {
 function announce(message) {
   ui.announce(message)
   window.setTimeout(() => {
-    if (ui.toast === message) ui.toast = ''
+    if (ui.toast === message) {
+      ui.toast = ''
+    }
   }, 3200)
 }
 
@@ -120,7 +122,9 @@ function announce(message) {
  */
 function openNode(id) {
   const node = workflow.value.find((item) => item.id === String(id))
-  if (isEditable(node)) router.push(`/nodes/${encodeURIComponent(node.id)}`)
+  if (isEditable(node)) {
+    router.push(`/nodes/${encodeURIComponent(node.id)}`)
+  }
 }
 
 /**
@@ -130,7 +134,9 @@ function openNode(id) {
  */
 async function closeDetails() {
   await router.push('/')
-  if (compactViewport.value) return
+  if (compactViewport.value) {
+    return
+  }
   await nextTick()
   await fitView({ padding: 0.16, duration: 250 })
 }
@@ -156,8 +162,9 @@ function onNodeDragStop({ node }) {
   if (
     !original ||
     (original.position.x === node.position.x && original.position.y === node.position.y)
-  )
+  ) {
     return
+  }
   commit(
     replaceNode(workflow.value, {
       ...original,
@@ -178,6 +185,7 @@ async function onCreate(node) {
   await commit([...workflow.value, node], 'Node created')
   if (!workflow.value.some((item) => item.id === node.id)) {
     pendingCreatedNodeId.value = ''
+
     return
   }
   createOpen.value = false
@@ -190,10 +198,14 @@ async function onCreate(node) {
  * @returns {Promise<void>}
  */
 async function onNodesInitialized() {
-  if (!pendingCreatedNodeId.value) return
+  if (!pendingCreatedNodeId.value) {
+    return
+  }
   const node = workflow.value.find((item) => item.id === pendingCreatedNodeId.value)
   pendingCreatedNodeId.value = ''
-  if (!node) return
+  if (!node) {
+    return
+  }
 
   if (compactViewport.value) {
     await setCenter(node.position.x + 130, node.position.y + 95, {
@@ -233,7 +245,9 @@ async function onDelete(id) {
  */
 async function undo() {
   const previous = ui.undo(workflow.value)
-  if (!previous) return
+  if (!previous) {
+    return
+  }
   await saveMutation.mutateAsync(previous)
   announce('Change undone')
 }
@@ -245,7 +259,9 @@ async function undo() {
  */
 async function redo() {
   const next = ui.redo(workflow.value)
-  if (!next) return
+  if (!next) {
+    return
+  }
   await saveMutation.mutateAsync(next)
   announce('Change redone')
 }
@@ -260,8 +276,9 @@ async function reset() {
     !window.confirm(
       'Reset the workflow to the original sample? Your edits in this browser will be removed.',
     )
-  )
+  ) {
     return
+  }
   ui.record(workflow.value)
   try {
     await resetMutation.mutateAsync()
@@ -289,14 +306,22 @@ function onKeydown(event) {
   const editable = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
   if (event.key === 'Escape') {
     createOpen.value = false
-    if (editableSelectedNode.value) router.push('/')
+    if (editableSelectedNode.value) {
+      router.push('/')
+    }
+
     return
   }
-  if (editable) return
+  if (editable) {
+    return
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
     event.preventDefault()
-    if (event.shiftKey) redo()
-    else undo()
+    if (event.shiftKey) {
+      redo()
+    } else {
+      undo()
+    }
   }
 }
 
@@ -307,7 +332,9 @@ function onKeydown(event) {
  */
 async function syncViewport() {
   const isCompact = window.innerWidth <= 640
-  if (compactViewport.value === isCompact) return
+  if (compactViewport.value === isCompact) {
+    return
+  }
   compactViewport.value = isCompact
   await nextTick()
 

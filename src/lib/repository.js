@@ -11,10 +11,13 @@ const PAYLOAD_PATH = '/candidate-assessments/payload.json'
  */
 export async function fetchWorkflow() {
   const response = await fetch(PAYLOAD_PATH)
-  if (!response.ok) throw new Error('Could not load the starter workflow.')
+  if (!response.ok) {
+    throw new Error('Could not load the starter workflow.')
+  }
   const seed = normalizeWorkflow(await response.json())
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
+
     return saved ? normalizeWorkflow(JSON.parse(saved)) : seed
   } catch {
     return seed
@@ -29,6 +32,7 @@ export async function fetchWorkflow() {
  */
 export async function saveWorkflow(workflow) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(workflow))
+
   return workflow
 }
 
@@ -40,8 +44,11 @@ export async function saveWorkflow(workflow) {
  */
 export async function resetWorkflow() {
   const response = await fetch(PAYLOAD_PATH)
-  if (!response.ok) throw new Error('Could not reset the workflow.')
+  if (!response.ok) {
+    throw new Error('Could not reset the workflow.')
+  }
   const seed = normalizeWorkflow(await response.json())
   localStorage.removeItem(STORAGE_KEY)
+
   return seed
 }
