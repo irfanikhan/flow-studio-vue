@@ -10,17 +10,29 @@ const PAYLOAD_PATH = '/candidate-assessments/payload.json'
  * @throws {Error} When the starter workflow cannot be fetched.
  */
 export async function fetchWorkflow() {
-  const response = await fetch(PAYLOAD_PATH)
-  if (!response.ok) {
-    throw new Error('Could not load the starter workflow.')
-  }
-  const seed = normalizeWorkflow(await response.json())
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
+  let saved
 
-    return saved ? normalizeWorkflow(JSON.parse(saved)) : seed
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    saved = raw ? normalizeWorkflow(JSON.parse(raw)) : null
   } catch {
-    return seed
+    saved = null
+  }
+
+  try {
+    const response = await fetch(PAYLOAD_PATH)
+    if (!response.ok) {
+      throw new Error('Could not load the starter workflow.')
+    }
+    const seed = normalizeWorkflow(await response.json())
+
+    return saved ?? seed
+  } catch (cause) {
+    if (saved) {
+      return saved
+    }
+
+    throw cause
   }
 }
 

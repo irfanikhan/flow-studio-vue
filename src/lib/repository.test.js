@@ -31,4 +31,18 @@ describe('workflow repository', () => {
     await expect(resetWorkflow()).rejects.toThrow('Could not reset the workflow.')
     expect(localStorage.getItem('flow-studio-workflow-v1')).not.toBeNull()
   })
+
+  it('loads saved edits when the starter service is unavailable', async () => {
+    const saved = [{ ...payload[0], name: 'Saved locally' }]
+    localStorage.setItem('flow-studio-workflow-v1', JSON.stringify(saved))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network unavailable')))
+
+    await expect(fetchWorkflow()).resolves.toMatchObject([{ id: '1', name: 'Saved locally' }])
+  })
+
+  it('reports a load failure when neither the service nor saved data is available', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network unavailable')))
+
+    await expect(fetchWorkflow()).rejects.toThrow('Network unavailable')
+  })
 })
