@@ -183,3 +183,32 @@ export function replaceNode(workflow, updatedNode) {
 export function isEditable(node) {
   return Boolean(node && ['sendMessage', 'addComment', 'dateTime'].includes(node.type))
 }
+
+/**
+ * Find an open canvas position for a new node below its selected parent.
+ *
+ * @param {object[]} workflow - Current workflow nodes and positions.
+ * @param {string|number} parentId - Parent node ID or -1 for an unconnected node.
+ * @returns {{x: number, y: number}} An open position with room for a visible edge.
+ */
+export function getNewNodePosition(workflow, parentId) {
+  const parent = workflow.find((node) => node.id === String(parentId))
+  const rightmost = Math.max(0, ...workflow.map((node) => node.position.x + 260))
+  const baseline = parent
+    ? parent.position.y + (parent.type === 'dateTimeConnector' ? 160 : 310)
+    : Math.max(220, ...workflow.map((node) => node.position.y))
+  const originX = parent?.position.x ?? rightmost + 100
+  const offsets = [0, -340, 340, -680, 680, -1020, 1020]
+
+  for (const offset of offsets) {
+    const position = { x: originX + offset, y: baseline }
+    const occupied = workflow.some(
+      (node) =>
+        Math.abs(node.position.x - position.x) < 300 &&
+        Math.abs(node.position.y - position.y) < 210,
+    )
+    if (!occupied) return position
+  }
+
+  return { x: originX, y: baseline + 260 }
+}

@@ -1,8 +1,8 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import { VueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { storeToRefs } from 'pinia'
@@ -37,9 +37,13 @@ import { useUiStore } from './stores/ui'
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const { fitView, setCenter } = useVueFlow({ id: 'conversation-flow' })
 const ui = useUiStore()
 const { createOpen, toast, past, future } = storeToRefs(ui)
 const sidebarOpen = ref(true)
+const compactViewport = ref(window.innerWidth <= 640)
+const fitViewOnInit = !compactViewport.value
+const pendingCreatedNodeId = ref('')
 const search = ref('')
 const { data, isPending, isError, error, refetch } = useQuery({
   queryKey: ['workflow'],
@@ -120,6 +124,18 @@ function openNode(id) {
 }
 
 /**
+ * Close the details drawer and fit the graph in the restored desktop canvas.
+ *
+ * @returns {Promise<void>}
+ */
+async function closeDetails() {
+  await router.push('/')
+  if (compactViewport.value) return
+  await nextTick()
+  await fitView({ padding: 0.16, duration: 250 })
+}
+
+/**
  * Handle node selection from Vue Flow.
  *
  * @param {{node: {id: string}}} event - Vue Flow node click event.
@@ -158,9 +174,35 @@ function onNodeDragStop({ node }) {
  * @returns {Promise<void>}
  */
 async function onCreate(node) {
+  pendingCreatedNodeId.value = node.id
   await commit([...workflow.value, node], 'Node created')
+  if (!workflow.value.some((item) => item.id === node.id)) {
+    pendingCreatedNodeId.value = ''
+    return
+  }
   createOpen.value = false
   openNode(node.id)
+}
+
+/**
+ * Frame the completed graph after Vue Flow measures a newly created node.
+ *
+ * @returns {Promise<void>}
+ */
+async function onNodesInitialized() {
+  if (!pendingCreatedNodeId.value) return
+  const node = workflow.value.find((item) => item.id === pendingCreatedNodeId.value)
+  pendingCreatedNodeId.value = ''
+  if (!node) return
+
+  if (compactViewport.value) {
+    await setCenter(node.position.x + 130, node.position.y + 95, {
+      zoom: 0.65,
+      duration: 250,
+    })
+  } else {
+    await fitView({ padding: 0.16, duration: 250 })
+  }
 }
 
 /**
@@ -222,7 +264,13 @@ async function reset() {
     return
   ui.record(workflow.value)
   await resetMutation.mutateAsync()
-  router.push('/')
+  await router.push('/')
+  await nextTick()
+  if (compactViewport.value) {
+    await setCenter(430, 500, { zoom: 0.65, duration: 250 })
+  } else {
+    await fitView({ padding: 0.16, duration: 250 })
+  }
   announce('Original workflow restored')
 }
 
@@ -247,8 +295,33 @@ function onKeydown(event) {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+/**
+ * Keep canvas behavior aligned with the current viewport width.
+ *
+ * @returns {Promise<void>}
+ */
+async function syncViewport() {
+  const isCompact = window.innerWidth <= 640
+  if (compactViewport.value === isCompact) return
+  compactViewport.value = isCompact
+  await nextTick()
+
+  if (isCompact) {
+    const focus = selectedNode.value?.position || { x: 430, y: 450 }
+    await setCenter(focus.x + 130, focus.y + 95, { zoom: 0.65, duration: 250 })
+  } else {
+    await fitView({ padding: 0.16, duration: 250 })
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', syncViewport)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', syncViewport)
+})
 </script>
 
 <template>
@@ -319,7 +392,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <div class="page-heading">
         <div>
           <div class="heading-kicker">
-            <span class="heading-line"></span> WORKFLOW EDITOR
+            WORKFLOW EDITOR
             <span class="version-pill">DRAFT</span>
           </div>
           <h1>Conversation routing</h1>
@@ -379,15 +452,18 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         </div>
         <div v-else class="flow-wrap">
           <VueFlow
+            id="conversation-flow"
             :nodes="elements.nodes"
             :edges="elements.edges"
-            :fit-view-on-init="true"
+            :fit-view-on-init="fitViewOnInit"
             :fit-view-options="{ padding: 0.14 }"
-            :min-zoom="0.75"
+            :default-viewport="compactViewport ? { x: -25, y: 20, zoom: 0.65 } : undefined"
+            :min-zoom="0.2"
             :max-zoom="1.5"
             :default-edge-options="{ type: 'smoothstep' }"
             @node-click="onNodeClick"
             @node-drag-stop="onNodeDragStop"
+            @nodes-initialized="onNodesInitialized"
             ><template #node-workflow="nodeProps"><WorkflowNode v-bind="nodeProps" /></template
             ><Background pattern-color="#dfe5ef" :gap="20" :size="1" /><Controls
               position="bottom-left"
@@ -409,13 +485,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       :key="editableSelectedNode.id"
       :node="editableSelectedNode"
       :saving="isSaving"
-      @close="router.push('/')"
+      @close="closeDetails"
       @save="onSave"
       @delete="onDelete"
     />
     <CreateNodeModal
       v-if="createOpen"
       :workflow="workflow"
+      :selected-id="editableSelectedNode?.id || ''"
       @close="createOpen = false"
       @create="onCreate"
     />

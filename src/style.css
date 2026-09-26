@@ -307,11 +307,6 @@ button:disabled {
   align-items: center;
   gap: 9px;
 }
-.heading-line {
-  width: 17px;
-  height: 2px;
-  background: #6b73e8;
-}
 .version-pill {
   color: #9b9ef4;
   background: #ededff;
@@ -1071,7 +1066,7 @@ button:disabled {
     padding-right: 30px;
   }
 }
-@media (max-width: 750px) {
+@media (max-width: 1024px) {
   .sidebar {
     width: 67px;
   }
@@ -1137,5 +1132,61 @@ button:disabled {
   }
   .type-option small {
     margin-left: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    display: none;
+  }
+  .page-heading {
+    padding: 24px 16px 20px;
+  }
+  .page-heading h1 {
+    font-size: clamp(22px, 7vw, 28px);
+  }
+  .create-button {
+    width: 100%;
+  }
+  .canvas-frame {
+    margin: 0 10px;
+    min-height: 760px;
+  }
+  .canvas-toolbar {
+    min-height: 72px;
+    height: auto;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .canvas-label {
+    gap: 8px;
+  }
+  .canvas-label strong {
+    font-size: 14px;
+  }
+  .canvas-label small {
+    font-size: 11px;
+  }
+  .canvas-label-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .tool-button {
+    width: 27px;
+    height: 29px;
+  }
+  .toolbar-separator {
+    margin: 0 3px;
+  }
+  .flow-wrap {
+    min-height: 680px;
+  }
+  .footer-line {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .details-drawer {
+    width: 100vw;
+    height: 100dvh;
   }
 }

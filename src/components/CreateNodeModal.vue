@@ -1,12 +1,20 @@
 <script setup>
 import { reactive, computed } from 'vue'
 import { X, Plus, Send, MessageSquareText, CalendarClock } from 'lucide-vue-next'
-import { createNode } from '../lib/workflow'
+import { createNode, getNewNodePosition } from '../lib/workflow'
 
-const props = defineProps({ workflow: { type: Array, required: true } })
+const props = defineProps({
+  workflow: { type: Array, required: true },
+  selectedId: { type: String, default: '' },
+})
 const emit = defineEmits(['close', 'create'])
-const form = reactive({ title: '', description: '', type: 'sendMessage', parentId: '' })
-const parents = computed(() => props.workflow.filter((node) => node.type !== 'dateTimeConnector'))
+const form = reactive({
+  title: '',
+  description: '',
+  type: 'sendMessage',
+  parentId: props.selectedId || props.workflow.at(-1)?.id || '',
+})
+const parents = computed(() => props.workflow)
 const types = [
   { value: 'sendMessage', label: 'Send Message', icon: Send, description: 'Reply to a contact' },
   {
@@ -29,11 +37,7 @@ const types = [
  * @returns {void}
  */
 function submit() {
-  const parent = props.workflow.find((node) => node.id === form.parentId)
-  const siblingCount = props.workflow.filter((node) => node.parentId === form.parentId).length
-  const position = parent
-    ? { x: parent.position.x + (siblingCount % 2 === 0 ? -130 : 180), y: parent.position.y + 220 }
-    : { x: 900 + (props.workflow.length % 3) * 45, y: 240 + (props.workflow.length % 4) * 150 }
+  const position = getNewNodePosition(props.workflow, form.parentId || -1)
   emit('create', createNode({ ...form, parentId: form.parentId || -1, position }))
 }
 </script>

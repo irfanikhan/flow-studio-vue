@@ -3,6 +3,7 @@ import {
   createNode,
   deleteNode,
   getDescription,
+  getNewNodePosition,
   normalizeWorkflow,
   replaceNode,
   toFlowElements,
@@ -54,6 +55,31 @@ describe('workflow model', () => {
       'hours->success',
       'success->message',
     ])
+  })
+
+  it('places a new child below its parent with a visible connection gap', () => {
+    const workflow = normalizeWorkflow(source)
+    const position = getNewNodePosition(workflow, 'message')
+    const created = createNode({
+      title: 'Next step',
+      description: 'Continue the conversation',
+      type: 'sendMessage',
+      parentId: 'message',
+      position,
+    })
+    const { edges } = toFlowElements([...workflow, created])
+
+    expect(position.y - workflow[3].position.y).toBeGreaterThan(250)
+    expect(edges).toContainEqual(expect.objectContaining({ source: 'message', target: created.id }))
+  })
+
+  it('avoids nearby nodes when adding another child to a branch', () => {
+    const workflow = normalizeWorkflow(source)
+    const first = getNewNodePosition(workflow, 'message')
+    const second = getNewNodePosition([...workflow, { id: 'new', position: first }], 'message')
+
+    expect(Math.abs(second.x - first.x)).toBeGreaterThanOrEqual(300)
+    expect(second.y).toBe(first.y)
   })
 
   it('derives readable card text from payload data', () => {
