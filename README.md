@@ -37,4 +37,6 @@ Click an editable node to open its details. Drag nodes to rearrange the canvas; 
 
 ## Deployment
 
-Build with `npm run build` and deploy the `dist` directory to Vercel. The `vercel.json` rewrites proxy the assessment payload and keep direct `/nodes/:id` links working. Other static hosts need an equivalent proxy for `/candidate-assessments/payload.json`.
+The Vercel project is linked to this GitHub repository. Vercel creates preview deployments for pull requests and production deployments for pushes to `main`. GitHub Actions runs tests, lint, formatting, and build checks; no Vercel credentials are stored in GitHub.
+
+The `vercel.json` rewrites proxy the assessment payload and keep direct `/nodes/:id` links working. Other static hosts need an equivalent proxy for `/candidate-assessments/payload.json`.
