@@ -209,6 +209,7 @@ export function isEditable(node) {
  * @param {object[]} workflow - Current workflow nodes and positions.
  * @param {string|number} parentId - Parent node ID or -1 for an unconnected node.
  * @returns {{x: number, y: number}} An open position with room for a visible edge.
+ * @throws {Error} If no candidate position can be found.
  */
 export function getNewNodePosition(workflow, parentId) {
   const parent = workflow.find((node) => node.id === String(parentId))
@@ -219,17 +220,19 @@ export function getNewNodePosition(workflow, parentId) {
   const originX = parent?.position.x ?? rightmost + 100
   const offsets = [0, -340, 340, -680, 680, -1020, 1020]
 
-  for (const offset of offsets) {
-    const position = { x: originX + offset, y: baseline }
-    const occupied = workflow.some(
-      (node) =>
-        Math.abs(node.position.x - position.x) < 300 &&
-        Math.abs(node.position.y - position.y) < 210,
-    )
-    if (!occupied) {
-      return position
+  for (let row = 0; row <= workflow.length; row += 1) {
+    for (const offset of offsets) {
+      const position = { x: originX + offset, y: baseline + row * 260 }
+      const occupied = workflow.some(
+        (node) =>
+          Math.abs(node.position.x - position.x) < 300 &&
+          Math.abs(node.position.y - position.y) < 210,
+      )
+      if (!occupied) {
+        return position
+      }
     }
   }
 
-  return { x: originX, y: baseline + 260 }
+  throw new Error('Could not find an open position for the new node.')
 }

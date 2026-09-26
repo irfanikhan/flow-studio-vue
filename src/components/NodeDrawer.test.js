@@ -51,4 +51,32 @@ describe('NodeDrawer', () => {
     expect(wrapper.get('[role="alert"]').text()).toMatch(/start time/)
     expect(wrapper.emitted('save')).toBeUndefined()
   })
+
+  it('preserves unsaved fields when the selected node position changes', async () => {
+    const wrapper = mount(NodeDrawer, { props: { node: message } })
+    await wrapper.get('#node-title').setValue('Unsaved greeting')
+    await wrapper.setProps({ node: { ...message, position: { x: 300, y: 400 } } })
+
+    expect(wrapper.get('#node-title').element.value).toBe('Unsaved greeting')
+  })
+
+  it('binds business hours by day even when the payload order changes', () => {
+    const node = {
+      id: 'hours',
+      name: 'Hours',
+      type: 'dateTime',
+      data: {
+        timezone: 'UTC',
+        times: [
+          { day: 'tue', startTime: '11:00', endTime: '18:00' },
+          { day: 'mon', startTime: '08:00', endTime: '16:00' },
+        ],
+      },
+    }
+    const wrapper = mount(NodeDrawer, { props: { node } })
+
+    expect(wrapper.get('input[aria-label="Monday opening time"]').element.value).toBe('08:00')
+    expect(wrapper.get('input[aria-label="Tuesday opening time"]').element.value).toBe('11:00')
+    expect(wrapper.get('input[aria-label="Wednesday opening time"]').element.value).toBe('09:00')
+  })
 })

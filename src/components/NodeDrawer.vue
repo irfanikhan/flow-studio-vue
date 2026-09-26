@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import {
   X,
   Trash2,
@@ -15,9 +15,25 @@ import { DAYS, getDescription } from '../lib/workflow'
 
 const props = defineProps({ node: { type: Object, required: true }, saving: Boolean })
 const emit = defineEmits(['close', 'save', 'delete'])
-const form = reactive({ name: '', description: '', data: {} })
+const draftData = JSON.parse(JSON.stringify(props.node.data ?? {}))
+if (props.node.type === 'dateTime') {
+  const times = Array.isArray(draftData.times) ? draftData.times : []
+  const byDay = new Map(times.map((time) => [time.day, time]))
+  draftData.times = DAYS.map(([day]) => ({
+    startTime: '09:00',
+    endTime: '17:00',
+    ...byDay.get(day),
+    day,
+  }))
+}
+const form = reactive({
+  name: props.node.name,
+  description: props.node.description ?? getDescription(props.node),
+  data: draftData,
+})
 const error = ref('')
 const uploadInput = ref(null)
+const payloadKeys = new WeakMap()
 const kind = computed(
   () =>
     ({
@@ -30,16 +46,21 @@ const payload = computed(() => form.data.payload || [])
 const attachments = computed(() => payload.value.filter((item) => item.type === 'attachment'))
 const texts = computed(() => payload.value.filter((item) => item.type === 'text'))
 
-watch(
-  () => props.node,
-  (node) => {
-    form.name = node.name
-    form.description = node.description || getDescription(node)
-    form.data = JSON.parse(JSON.stringify(node.data))
-    error.value = ''
-  },
-  { immediate: true },
-)
+/**
+ * Keep a stable rendering key while editable payload items are added or removed.
+ *
+ * @param {object} item - A reactive payload item.
+ * @returns {string} Stable key for this item while the drawer is mounted.
+ */
+function getPayloadKey(item) {
+  let key = payloadKeys.get(item)
+  if (!key) {
+    key = crypto.randomUUID()
+    payloadKeys.set(item, key)
+  }
+
+  return key
+}
 
 /**
  * Check whether an attachment can be rendered as an image preview.
@@ -73,18 +94,26 @@ async function uploadAttachment(event) {
   }
   if (file.size > 2 * 1024 * 1024) {
     error.value = 'Choose a file smaller than 2 MB so it can be saved in this browser.'
+    event.target.value = ''
 
     return
   }
-  const url = await new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error('Could not read this file.'))
-    reader.readAsDataURL(file)
-  })
-  form.data.payload.push({ type: 'attachment', attachment: url, name: file.name })
-  event.target.value = ''
-  error.value = ''
+
+  try {
+    const url = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Could not read this file.'))
+      reader.onabort = () => reject(new Error('Attachment reading was cancelled.'))
+      reader.readAsDataURL(file)
+    })
+    form.data.payload.push({ type: 'attachment', attachment: url, name: file.name })
+    error.value = ''
+  } catch (cause) {
+    error.value = cause.message || 'Could not read this attachment.'
+  } finally {
+    event.target.value = ''
+  }
 }
 
 /**
@@ -177,7 +206,7 @@ function removeNode() {
         <X :size="20" />
       </button>
     </div>
-    <div class="drawer-scroll">
+    <div class="drawer-scroll" :inert="saving">
       <div class="drawer-intro">
         Configure this step in your workflow. Changes are saved in this browser.
       </div>
@@ -207,7 +236,7 @@ function removeNode() {
         <div v-if="!texts.length" class="empty-small">
           No message text yet. Add a text block to get started.
         </div>
-        <div v-for="(item, index) in texts" :key="index" class="content-item">
+        <div v-for="(item, index) in texts" :key="getPayloadKey(item)" class="content-item">
           <div class="item-heading">
             <label class="field-label" :for="`message-${index}`">Text {{ index + 1 }}</label
             ><button
@@ -232,7 +261,11 @@ function removeNode() {
           </h3>
         </div>
         <div v-if="attachments.length" class="attachment-grid">
-          <div v-for="(item, index) in attachments" :key="index" class="attachment-tile">
+          <div
+            v-for="(item, index) in attachments"
+            :key="getPayloadKey(item)"
+            class="attachment-tile"
+          >
             <img
               v-if="isImage(item.attachment)"
               :src="item.attachment"
@@ -302,7 +335,7 @@ function removeNode() {
       <div class="drawer-section danger-section">
         <h3>Danger zone</h3>
         <p class="section-help">Remove this node from the workflow.</p>
-        <button class="button button-danger" @click="removeNode">
+        <button class="button button-danger" :disabled="saving" @click="removeNode">
           <Trash2 :size="16" /> Delete node
         </button>
       </div>

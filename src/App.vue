@@ -37,13 +37,14 @@ import { useUiStore } from './stores/ui'
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
-const { fitView, setCenter } = useVueFlow({ id: 'conversation-flow' })
+const { fitView, setCenter } = useVueFlow('conversation-flow')
 const ui = useUiStore()
 const { createOpen, toast, past, future } = storeToRefs(ui)
 const sidebarOpen = ref(true)
 const compactViewport = ref(window.innerWidth <= 640)
 const fitViewOnInit = !compactViewport.value
 const pendingCreatedNodeId = ref('')
+const isWriting = ref(false)
 const search = ref('')
 const { data, isPending, isError, error, refetch } = useQuery({
   queryKey: ['workflow'],
@@ -57,7 +58,6 @@ const resetMutation = useMutation({
   mutationFn: resetWorkflow,
   onSuccess: (workflow) => queryClient.setQueryData(['workflow'], workflow),
 })
-const isSaving = saveMutation.isPending
 const workflow = computed(() => data.value || [])
 const elements = computed(() => toFlowElements(workflow.value))
 const selectedNode = computed(() =>
@@ -82,20 +82,40 @@ const icons = {
 }
 
 /**
+ * Copy the current reactive workflow before replacing query data.
+ *
+ * @returns {object[]} A plain snapshot suitable for undo history.
+ */
+function snapshotWorkflow() {
+  return JSON.parse(JSON.stringify(workflow.value))
+}
+
+/**
  * Persist a user edit and retain a snapshot for undo.
  *
  * @param {object[]} next - The next complete workflow state.
  * @param {string} message - Confirmation shown after a successful save.
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>} Whether the edit was persisted.
  */
 async function commit(next, message) {
+  if (isWriting.value) {
+    return false
+  }
+
+  const previous = snapshotWorkflow()
+  isWriting.value = true
   try {
-    ui.record(workflow.value)
     await saveMutation.mutateAsync(next)
+    ui.record(previous)
     announce(message)
+
+    return true
   } catch (cause) {
-    ui.past.pop()
     announce(cause.message || 'Could not save changes.')
+
+    return false
+  } finally {
+    isWriting.value = false
   }
 }
 
@@ -182,8 +202,7 @@ function onNodeDragStop({ node }) {
  */
 async function onCreate(node) {
   pendingCreatedNodeId.value = node.id
-  await commit([...workflow.value, node], 'Node created')
-  if (!workflow.value.some((item) => item.id === node.id)) {
+  if (!(await commit([...workflow.value, node], 'Node created'))) {
     pendingCreatedNodeId.value = ''
 
     return
@@ -234,8 +253,9 @@ async function onSave(node) {
  * @returns {Promise<void>}
  */
 async function onDelete(id) {
-  await commit(deleteNode(workflow.value, id), 'Node deleted')
-  router.push('/')
+  if (await commit(deleteNode(workflow.value, id), 'Node deleted')) {
+    await router.push('/')
+  }
 }
 
 /**
@@ -244,12 +264,25 @@ async function onDelete(id) {
  * @returns {Promise<void>}
  */
 async function undo() {
-  const previous = ui.undo(workflow.value)
-  if (!previous) {
+  const previous = ui.past.at(-1)
+  if (isWriting.value || !previous) {
     return
   }
-  await saveMutation.mutateAsync(previous)
-  announce('Change undone')
+
+  const current = snapshotWorkflow()
+  isWriting.value = true
+  try {
+    await saveMutation.mutateAsync(previous)
+    ui.undo(current)
+    if (route.params.id && !previous.some((node) => node.id === String(route.params.id))) {
+      await router.push('/')
+    }
+    announce('Change undone')
+  } catch (cause) {
+    announce(cause.message || 'Could not undo the change.')
+  } finally {
+    isWriting.value = false
+  }
 }
 
 /**
@@ -258,12 +291,22 @@ async function undo() {
  * @returns {Promise<void>}
  */
 async function redo() {
-  const next = ui.redo(workflow.value)
-  if (!next) {
+  const next = ui.future.at(-1)
+  if (isWriting.value || !next) {
     return
   }
-  await saveMutation.mutateAsync(next)
-  announce('Change redone')
+
+  const current = snapshotWorkflow()
+  isWriting.value = true
+  try {
+    await saveMutation.mutateAsync(next)
+    ui.redo(current)
+    announce('Change redone')
+  } catch (cause) {
+    announce(cause.message || 'Could not redo the change.')
+  } finally {
+    isWriting.value = false
+  }
 }
 
 /**
@@ -272,6 +315,10 @@ async function redo() {
  * @returns {Promise<void>}
  */
 async function reset() {
+  if (isWriting.value) {
+    return
+  }
+
   if (
     !window.confirm(
       'Reset the workflow to the original sample? Your edits in this browser will be removed.',
@@ -279,9 +326,14 @@ async function reset() {
   ) {
     return
   }
-  ui.record(workflow.value)
+
+  const previous = snapshotWorkflow()
+  isWriting.value = true
+  let restored = false
   try {
     await resetMutation.mutateAsync()
+    ui.record(previous)
+    restored = true
     await router.push('/')
     await nextTick()
     if (compactViewport.value) {
@@ -291,8 +343,13 @@ async function reset() {
     }
     announce('Original workflow restored')
   } catch (cause) {
-    ui.past.pop()
-    announce(cause.message || 'Could not reset the workflow.')
+    announce(
+      restored
+        ? 'Workflow restored, but the canvas could not be reframed.'
+        : cause.message || 'Could not reset the workflow.',
+    )
+  } finally {
+    isWriting.value = false
   }
 }
 
@@ -312,7 +369,7 @@ function onKeydown(event) {
 
     return
   }
-  if (editable) {
+  if (editable || isWriting.value) {
     return
   }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
@@ -395,7 +452,7 @@ onUnmounted(() => {
           </button>
           <p v-if="!filteredNodes.length" class="sidebar-empty">No nodes found</p>
         </div>
-        <button class="sidebar-add" @click="createOpen = true">
+        <button class="sidebar-add" :disabled="isWriting" @click="createOpen = true">
           <Plus :size="17" /> Add a node
         </button>
       </div>
@@ -430,7 +487,11 @@ onUnmounted(() => {
           <h1>Conversation routing</h1>
           <p>Design the path every conversation takes, one step at a time.</p>
         </div>
-        <button class="button button-primary create-button" @click="createOpen = true">
+        <button
+          class="button button-primary create-button"
+          :disabled="isWriting"
+          @click="createOpen = true"
+        >
           <Plus :size="19" /> Create new node
         </button>
       </div>
@@ -446,7 +507,7 @@ onUnmounted(() => {
           <div class="toolbar-actions">
             <button
               class="tool-button"
-              :disabled="!past.length"
+              :disabled="isWriting || !past.length"
               title="Undo (⌘Z)"
               aria-label="Undo"
               @click="undo"
@@ -454,7 +515,7 @@ onUnmounted(() => {
               <Undo2 :size="18" /></button
             ><button
               class="tool-button"
-              :disabled="!future.length"
+              :disabled="isWriting || !future.length"
               title="Redo (⌘⇧Z)"
               aria-label="Redo"
               @click="redo"
@@ -463,6 +524,7 @@ onUnmounted(() => {
             ><span class="toolbar-separator"></span
             ><button
               class="tool-button"
+              :disabled="isWriting"
               title="Reset to sample"
               aria-label="Reset to sample"
               @click="reset"
@@ -492,6 +554,7 @@ onUnmounted(() => {
             :default-viewport="compactViewport ? { x: -25, y: 20, zoom: 0.65 } : undefined"
             :min-zoom="0.2"
             :max-zoom="1.5"
+            :nodes-draggable="!isWriting"
             :default-edge-options="{ type: 'smoothstep' }"
             @node-click="onNodeClick"
             @node-drag-stop="onNodeDragStop"
@@ -516,7 +579,7 @@ onUnmounted(() => {
       v-if="editableSelectedNode"
       :key="editableSelectedNode.id"
       :node="editableSelectedNode"
-      :saving="isSaving"
+      :saving="isWriting"
       @close="closeDetails"
       @save="onSave"
       @delete="onDelete"
@@ -525,6 +588,7 @@ onUnmounted(() => {
       v-if="createOpen"
       :workflow="workflow"
       :selected-id="editableSelectedNode?.id || ''"
+      :busy="isWriting"
       @close="createOpen = false"
       @create="onCreate"
     />

@@ -6,6 +6,7 @@ import { createNode, getNewNodePosition } from '../lib/workflow'
 const props = defineProps({
   workflow: { type: Array, required: true },
   selectedId: { type: String, default: '' },
+  busy: Boolean,
 })
 const emit = defineEmits(['close', 'create'])
 const form = reactive({
@@ -37,6 +38,10 @@ const types = [
  * @returns {void}
  */
 function submit() {
+  if (props.busy) {
+    return
+  }
+
   const position = getNewNodePosition(props.workflow, form.parentId || -1)
   emit('create', createNode({ ...form, parentId: form.parentId || -1, position }))
 }
@@ -105,7 +110,7 @@ function submit() {
         </div>
         <div class="modal-actions">
           <button type="button" class="button button-ghost" @click="emit('close')">Cancel</button
-          ><button type="submit" class="button button-primary">
+          ><button type="submit" class="button button-primary" :disabled="busy">
             <Plus :size="17" /> Create node
           </button>
         </div>

@@ -82,6 +82,20 @@ describe('workflow model', () => {
     expect(second.y).toBe(first.y)
   })
 
+  it('keeps searching when the first row and old fallback are occupied', () => {
+    const parent = { id: 'parent', type: 'sendMessage', position: { x: 0, y: 0 } }
+    const firstRow = [0, -340, 340, -680, 680, -1020, 1020].map((x, index) => ({
+      id: String(index),
+      position: { x, y: 310 },
+    }))
+    const occupiedFallback = { id: 'fallback', position: { x: 0, y: 570 } }
+    const position = getNewNodePosition([parent, ...firstRow, occupiedFallback], 'parent')
+
+    expect(position).not.toEqual(occupiedFallback.position)
+    expect(position.y).toBe(570)
+    expect(position.x).not.toBe(0)
+  })
+
   it('derives readable card text from payload data', () => {
     expect(getDescription(source[3])).toBe('Hello')
     expect(getDescription(source[1])).toBe('Business hours · UTC')
