@@ -263,15 +263,20 @@ async function reset() {
   )
     return
   ui.record(workflow.value)
-  await resetMutation.mutateAsync()
-  await router.push('/')
-  await nextTick()
-  if (compactViewport.value) {
-    await setCenter(430, 500, { zoom: 0.65, duration: 250 })
-  } else {
-    await fitView({ padding: 0.16, duration: 250 })
+  try {
+    await resetMutation.mutateAsync()
+    await router.push('/')
+    await nextTick()
+    if (compactViewport.value) {
+      await setCenter(430, 500, { zoom: 0.65, duration: 250 })
+    } else {
+      await fitView({ padding: 0.16, duration: 250 })
+    }
+    announce('Original workflow restored')
+  } catch (cause) {
+    ui.past.pop()
+    announce(cause.message || 'Could not reset the workflow.')
   }
-  announce('Original workflow restored')
 }
 
 /**

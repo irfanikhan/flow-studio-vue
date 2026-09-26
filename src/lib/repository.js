@@ -1,6 +1,7 @@
 import { normalizeWorkflow } from './workflow'
 
 const STORAGE_KEY = 'flow-studio-workflow-v1'
+const PAYLOAD_PATH = '/candidate-assessments/payload.json'
 
 /**
  * Fetch the supplied JSON and apply saved browser edits when available.
@@ -9,7 +10,7 @@ const STORAGE_KEY = 'flow-studio-workflow-v1'
  * @throws {Error} When the starter workflow cannot be fetched.
  */
 export async function fetchWorkflow() {
-  const response = await fetch(`${import.meta.env.BASE_URL}payload.json`)
+  const response = await fetch(PAYLOAD_PATH)
   if (!response.ok) throw new Error('Could not load the starter workflow.')
   const seed = normalizeWorkflow(await response.json())
   try {
@@ -38,8 +39,9 @@ export async function saveWorkflow(workflow) {
  * @throws {Error} When the starter workflow cannot be fetched.
  */
 export async function resetWorkflow() {
-  localStorage.removeItem(STORAGE_KEY)
-  const response = await fetch(`${import.meta.env.BASE_URL}payload.json`)
+  const response = await fetch(PAYLOAD_PATH)
   if (!response.ok) throw new Error('Could not reset the workflow.')
-  return normalizeWorkflow(await response.json())
+  const seed = normalizeWorkflow(await response.json())
+  localStorage.removeItem(STORAGE_KEY)
+  return seed
 }

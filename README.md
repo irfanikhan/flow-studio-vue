@@ -24,7 +24,7 @@ Run `npm run format` to apply the project Prettier style.
 
 ## How it works
 
-- The starter data is a local copy of the supplied [assessment payload](https://respond-io-fe-bucket.s3.ap-southeast-1.amazonaws.com/candidate-assessments/payload.json) in `public/payload.json`. The app fetches it with TanStack Query. A local copy makes the initial flow reliable if the assessment bucket is unavailable or blocks cross-origin requests.
+- TanStack Query fetches the supplied [assessment payload](https://respond-io-fe-bucket.s3.ap-southeast-1.amazonaws.com/candidate-assessments/payload.json) from the live S3 service. The S3 response has no browser CORS header, so Vite and Vercel proxy `/candidate-assessments/payload.json` to that URL. Loading or resetting the sample requires network access to S3.
 - Query mutations persist complete workflow snapshots to `localStorage`. There is no write API in the brief, so edits are scoped to the current browser. **Reset to sample** removes saved edits.
 - Pinia keeps transient UI state and up to 30 undo snapshots. Vue Router maps `/nodes/:id` to the details drawer, so a node can be opened by URL. Vue Flow handles graph interaction and dragging.
 - The source `trigger` and `dateTimeConnector` records appear on the canvas as part of the original graph. As requested, they do not open a details drawer.
@@ -37,4 +37,4 @@ Click an editable node to open its details. Drag nodes to rearrange the canvas; 
 
 ## Deployment
 
-This is a static Vite app. Build with `npm run build` and deploy the `dist` directory to Vercel. The `vercel.json` rewrite keeps direct `/nodes/:id` links working.
+Build with `npm run build` and deploy the `dist` directory to Vercel. The `vercel.json` rewrites proxy the assessment payload and keep direct `/nodes/:id` links working. Other static hosts need an equivalent proxy for `/candidate-assessments/payload.json`.
