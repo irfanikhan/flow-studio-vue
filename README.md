@@ -15,8 +15,12 @@ Open the local URL printed by Vite. To verify the app:
 
 ```bash
 npm run test
+npm run lint
+npm run format:check
 npm run build
 ```
+
+Run `npm run format` to apply the project Prettier style.
 
 ## How it works
 

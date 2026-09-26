@@ -3,8 +3,16 @@ import { mount } from '@vue/test-utils'
 import NodeDrawer from './NodeDrawer.vue'
 
 const message = {
-  id: 'message', name: 'Welcome', type: 'sendMessage', parentId: -1,
-  data: { payload: [{ type: 'text', text: 'Hello' }, { type: 'attachment', attachment: 'https://example.com/photo.jpg' }] },
+  id: 'message',
+  name: 'Welcome',
+  type: 'sendMessage',
+  parentId: -1,
+  data: {
+    payload: [
+      { type: 'text', text: 'Hello' },
+      { type: 'attachment', attachment: 'https://example.com/photo.jpg' },
+    ],
+  },
 }
 
 describe('NodeDrawer', () => {
@@ -23,8 +31,19 @@ describe('NodeDrawer', () => {
 
   it('rejects an invalid business hours interval', async () => {
     const node = {
-      id: 'hours', name: 'Hours', type: 'dateTime', description: 'Open times', parentId: -1,
-      data: { timezone: 'UTC', times: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => ({ day, startTime: '09:00', endTime: '17:00' })) },
+      id: 'hours',
+      name: 'Hours',
+      type: 'dateTime',
+      description: 'Open times',
+      parentId: -1,
+      data: {
+        timezone: 'UTC',
+        times: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => ({
+          day,
+          startTime: '09:00',
+          endTime: '17:00',
+        })),
+      },
     }
     const wrapper = mount(NodeDrawer, { props: { node } })
     await wrapper.get('input[aria-label="Monday opening time"]').setValue('18:00')

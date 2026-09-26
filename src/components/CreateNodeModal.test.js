@@ -10,6 +10,10 @@ describe('CreateNodeModal', () => {
     await wrapper.get('#new-description').setValue('Welcome!')
     await wrapper.get('form').trigger('submit.prevent')
     const node = wrapper.emitted('create')?.[0]?.[0]
-    expect(node).toMatchObject({ name: 'First reply', type: 'sendMessage', data: { payload: [{ type: 'text', text: 'Welcome!' }] } })
+    expect(node).toMatchObject({
+      name: 'First reply',
+      type: 'sendMessage',
+      data: { payload: [{ type: 'text', text: 'Welcome!' }] },
+    })
   })
 })
