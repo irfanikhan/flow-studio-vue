@@ -1,7 +1,52 @@
 import { normalizeWorkflow } from './workflow'
+import { clearSavedWorkflow, readSavedWorkflow, writeSavedWorkflow } from './workflowStorage'
 
 const STORAGE_KEY = 'flow-studio-workflow-v1'
 const PAYLOAD_PATH = '/candidate-assessments/payload.json'
+
+/**
+ * Read an existing localStorage snapshot and migrate it to IndexedDB.
+ *
+ * @returns {Promise<object[]|null>} A valid legacy workflow, if available.
+ */
+async function readLegacyWorkflow() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const legacy = normalizeWorkflow(JSON.parse(raw))
+    try {
+      await writeSavedWorkflow(legacy)
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      return legacy
+    }
+
+    return legacy
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Load a valid saved workflow without letting corrupt browser data break rendering.
+ *
+ * @returns {Promise<object[]|null>} A valid saved workflow, if available.
+ */
+async function loadSavedWorkflow() {
+  try {
+    const stored = await readSavedWorkflow()
+    if (stored !== undefined) {
+      return normalizeWorkflow(stored)
+    }
+  } catch {
+    return readLegacyWorkflow()
+  }
+
+  return readLegacyWorkflow()
+}
 
 /**
  * Fetch the supplied JSON and apply saved browser edits when available.
@@ -10,14 +55,7 @@ const PAYLOAD_PATH = '/candidate-assessments/payload.json'
  * @throws {Error} When the starter workflow cannot be fetched.
  */
 export async function fetchWorkflow() {
-  let saved
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    saved = raw ? normalizeWorkflow(JSON.parse(raw)) : null
-  } catch {
-    saved = null
-  }
+  const saved = await loadSavedWorkflow()
 
   try {
     const response = await fetch(PAYLOAD_PATH)
@@ -37,13 +75,26 @@ export async function fetchWorkflow() {
 }
 
 /**
- * Persist a complete workflow snapshot in the current browser.
+ * Persist a complete workflow snapshot in IndexedDB.
  *
  * @param {object[]} workflow - Nodes to save.
  * @returns {Promise<object[]>} The persisted nodes.
  */
 export async function saveWorkflow(workflow) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(workflow))
+  try {
+    await writeSavedWorkflow(workflow)
+  } catch (cause) {
+    if (cause?.name === 'QuotaExceededError') {
+      throw new Error(
+        'Browser storage is full. Remove attachments or free space, then try again.',
+        {
+          cause,
+        },
+      )
+    }
+
+    throw cause
+  }
 
   return workflow
 }
@@ -60,6 +111,7 @@ export async function resetWorkflow() {
     throw new Error('Could not reset the workflow.')
   }
   const seed = normalizeWorkflow(await response.json())
+  await clearSavedWorkflow()
   localStorage.removeItem(STORAGE_KEY)
 
   return seed

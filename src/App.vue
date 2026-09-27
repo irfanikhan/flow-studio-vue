@@ -31,6 +31,7 @@ import WorkflowNode from './components/WorkflowNode.vue'
 import NodeDrawer from './components/NodeDrawer.vue'
 import CreateNodeModal from './components/CreateNodeModal.vue'
 import { fetchWorkflow, saveWorkflow, resetWorkflow } from './lib/repository'
+import { clonePlain } from './lib/clonePlain'
 import { toFlowElements, replaceNode, deleteNode, isEditable, NODE_TYPES } from './lib/workflow'
 import { useUiStore } from './stores/ui'
 
@@ -87,7 +88,7 @@ const icons = {
  * @returns {object[]} A plain snapshot suitable for undo history.
  */
 function snapshotWorkflow() {
-  return JSON.parse(JSON.stringify(workflow.value))
+  return clonePlain(workflow.value)
 }
 
 /**

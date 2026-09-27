@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import NodeDrawer from './NodeDrawer.vue'
-import { getDescription } from '../lib/workflow'
+import NodeDrawer from '../NodeDrawer.vue'
+import { getDescription } from '../../lib/workflow'
 
 const message = {
   id: 'message',
@@ -28,6 +28,24 @@ describe('NodeDrawer', () => {
     expect(updated.name).toBe('Greeting')
     expect(updated.data.payload[0]).toEqual({ type: 'text', text: 'Hi there' })
     expect(updated.data.payload[1].type).toBe('attachment')
+  })
+
+  it('adds text to a message with no saved payload', async () => {
+    const node = {
+      id: 'legacy-message',
+      name: 'Legacy message',
+      type: 'sendMessage',
+      description: 'Send a reply',
+      data: {},
+    }
+    const wrapper = mount(NodeDrawer, { props: { node } })
+    await wrapper.get('.text-button').trigger('click')
+    await wrapper.get('#message-0').setValue('Hello again')
+    await wrapper.get('.save-button').trigger('click')
+
+    expect(wrapper.emitted('save')?.[0]?.[0].data.payload).toEqual([
+      { type: 'text', text: 'Hello again' },
+    ])
   })
 
   it('rejects an invalid business hours interval', async () => {

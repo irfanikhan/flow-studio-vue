@@ -58,29 +58,112 @@ export function getDescription(node) {
 }
 
 /**
+ * Repair type-specific fields while retaining supported source payload details.
+ *
+ * @param {string} type - Workflow node type.
+ * @param {unknown} value - Raw node data.
+ * @returns {object} Data safe for canvas rendering and the details drawer.
+ */
+function normalizeNodeData(type, value) {
+  const data =
+    value && typeof value === 'object' && !Array.isArray(value) ? structuredClone(value) : {}
+  if (type === 'sendMessage') {
+    data.payload = (Array.isArray(data.payload) ? data.payload : [])
+      .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+      .map((item) => {
+        if (item.type === 'text') {
+          return { ...item, text: typeof item.text === 'string' ? item.text : '' }
+        }
+        if (item.type === 'attachment') {
+          return {
+            ...item,
+            attachment: typeof item.attachment === 'string' ? item.attachment : '',
+            name: typeof item.name === 'string' ? item.name : '',
+          }
+        }
+
+        return item
+      })
+  }
+  if (type === 'addComment') {
+    data.comment = typeof data.comment === 'string' ? data.comment : ''
+  }
+  if (type === 'dateTime') {
+    data.timezone = typeof data.timezone === 'string' ? data.timezone : 'UTC'
+    data.times = (Array.isArray(data.times) ? data.times : [])
+      .filter((time) => time && typeof time === 'object' && !Array.isArray(time))
+      .map((time) => ({
+        ...time,
+        day: typeof time.day === 'string' ? time.day : '',
+        startTime: typeof time.startTime === 'string' ? time.startTime : '09:00',
+        endTime: typeof time.endTime === 'string' ? time.endTime : '17:00',
+      }))
+  }
+
+  return data
+}
+
+/**
  * Normalize the supplied payload while preserving node data and relationships.
  *
- * @param {object[]} payload - Raw nodes from the assessment JSON.
- * @returns {object[]} Nodes with string IDs and canvas positions.
- * @throws {Error} When the payload is not an array.
+ * @param {unknown} payload - Raw nodes from the assessment JSON or browser storage.
+ * @returns {object[]} Nodes with safe fields, string IDs, and canvas positions.
+ * @throws {Error} When a node cannot be identified or rendered.
  */
 export function normalizeWorkflow(payload) {
   if (!Array.isArray(payload)) {
     throw new Error('The workflow payload must be an array.')
   }
 
-  return payload.map((node) => ({
-    ...node,
-    id: String(node.id),
-    parentId: node.parentId === -1 ? -1 : String(node.parentId),
-    name:
-      node.name ||
-      (node.type === 'trigger'
-        ? 'Conversation Opened'
-        : NODE_TYPES[node.type]?.label || 'Untitled node'),
-    data: structuredClone(node.data || {}),
-    position: node.position || INITIAL_POSITIONS[String(node.id)] || { x: 420, y: 180 },
-  }))
+  const knownIds = new Set()
+
+  return payload.map((node, index) => {
+    if (
+      !node ||
+      typeof node !== 'object' ||
+      Array.isArray(node) ||
+      !['string', 'number'].includes(typeof node.id) ||
+      (typeof node.id === 'number' && !Number.isFinite(node.id)) ||
+      !String(node.id).trim() ||
+      !NODE_TYPES[node.type]
+    ) {
+      throw new Error(`Invalid workflow node at index ${index}.`)
+    }
+
+    const id = String(node.id)
+    if (knownIds.has(id)) {
+      throw new Error(`Duplicate workflow node ID: ${id}.`)
+    }
+    knownIds.add(id)
+
+    const sourcePosition = node.position
+    const fallbackPosition = INITIAL_POSITIONS[id] || { x: 420, y: 180 }
+    const position =
+      sourcePosition && Number.isFinite(sourcePosition.x) && Number.isFinite(sourcePosition.y)
+        ? { x: sourcePosition.x, y: sourcePosition.y }
+        : { ...fallbackPosition }
+    const parentId =
+      node.parentId === -1 || node.parentId === '-1' || node.parentId == null
+        ? -1
+        : ['string', 'number'].includes(typeof node.parentId)
+          ? String(node.parentId)
+          : -1
+
+    return {
+      ...node,
+      id,
+      parentId,
+      name:
+        typeof node.name === 'string' && node.name.trim()
+          ? node.name
+          : node.type === 'trigger'
+            ? 'Conversation Opened'
+            : NODE_TYPES[node.type].label,
+      description: typeof node.description === 'string' ? node.description : undefined,
+      data: normalizeNodeData(node.type, node.data),
+      position,
+    }
+  })
 }
 
 /**

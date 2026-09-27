@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
-import WorkflowNode from './WorkflowNode.vue'
+import WorkflowNode from '../WorkflowNode.vue'
 
 describe('WorkflowNode', () => {
   it('opens editable nodes with Enter and Space', async () => {

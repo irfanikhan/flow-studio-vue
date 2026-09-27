@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import CreateNodeModal from './CreateNodeModal.vue'
+import CreateNodeModal from '../CreateNodeModal.vue'
 
 describe('CreateNodeModal', () => {
   it('requires fields and emits a complete node after submission', async () => {

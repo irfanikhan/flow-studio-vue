@@ -12,10 +12,14 @@ import {
   FileText,
 } from 'lucide-vue-next'
 import { DAYS, getDescription } from '../lib/workflow'
+import { clonePlain } from '../lib/clonePlain'
 
 const props = defineProps({ node: { type: Object, required: true }, saving: Boolean })
 const emit = defineEmits(['close', 'save', 'delete'])
-const draftData = JSON.parse(JSON.stringify(props.node.data ?? {}))
+const draftData = clonePlain(props.node.data ?? {})
+if (props.node.type === 'sendMessage' && !Array.isArray(draftData.payload)) {
+  draftData.payload = []
+}
 if (props.node.type === 'dateTime') {
   const times = Array.isArray(draftData.times) ? draftData.times : []
   const byDay = new Map(times.map((time) => [time.day, time]))
@@ -42,7 +46,7 @@ const kind = computed(
       dateTime: { label: 'Business Hours', icon: CalendarClock, tone: 'orange' },
     })[props.node.type],
 )
-const payload = computed(() => form.data.payload || [])
+const payload = computed(() => (Array.isArray(form.data.payload) ? form.data.payload : []))
 const attachments = computed(() => payload.value.filter((item) => item.type === 'attachment'))
 const texts = computed(() => payload.value.filter((item) => item.type === 'text'))
 
@@ -122,6 +126,10 @@ async function uploadAttachment(event) {
  * @returns {void}
  */
 function addText() {
+  if (!Array.isArray(form.data.payload)) {
+    form.data.payload = []
+  }
+
   form.data.payload.push({ type: 'text', text: '' })
 }
 
@@ -132,7 +140,7 @@ function addText() {
  * @returns {void}
  */
 function removePayload(item) {
-  form.data.payload = form.data.payload.filter((entry) => entry !== item)
+  form.data.payload = payload.value.filter((entry) => entry !== item)
 }
 
 /**
@@ -190,7 +198,7 @@ function save() {
     ...props.node,
     name: form.name.trim(),
     description: form.description.trim(),
-    data: JSON.parse(JSON.stringify(form.data)),
+    data: clonePlain(form.data),
   })
 }
 

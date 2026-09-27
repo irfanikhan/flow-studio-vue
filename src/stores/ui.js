@@ -15,7 +15,7 @@ export const useUiStore = defineStore('ui', {
      * @returns {void}
      */
     record(workflow) {
-      this.past.push(JSON.parse(JSON.stringify(workflow)))
+      this.past.push(workflow)
       if (this.past.length > 30) {
         this.past.shift()
       }
@@ -31,7 +31,7 @@ export const useUiStore = defineStore('ui', {
       if (!this.past.length) {
         return null
       }
-      this.future.push(JSON.parse(JSON.stringify(current)))
+      this.future.push(current)
 
       return this.past.pop()
     },
@@ -45,7 +45,7 @@ export const useUiStore = defineStore('ui', {
       if (!this.future.length) {
         return null
       }
-      this.past.push(JSON.parse(JSON.stringify(current)))
+      this.past.push(current)
 
       return this.future.pop()
     },

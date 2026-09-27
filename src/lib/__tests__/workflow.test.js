@@ -8,7 +8,7 @@ import {
   replaceNode,
   toFlowElements,
   isEditable,
-} from './workflow'
+} from '../workflow'
 
 const source = [
   { id: 1, parentId: -1, type: 'trigger', data: { type: 'conversationOpened' } },
@@ -45,6 +45,35 @@ describe('workflow model', () => {
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
     )
     expect(source[3].position).toBeUndefined()
+  })
+
+  it('repairs malformed saved fields before canvas rendering', () => {
+    const workflow = normalizeWorkflow([
+      {
+        id: 'legacy',
+        parentId: null,
+        type: 'sendMessage',
+        name: 42,
+        description: 42,
+        position: { x: 'invalid', y: 20 },
+        data: { payload: [null, { type: 'text', text: 42 }] },
+      },
+    ])
+
+    expect(workflow[0]).toMatchObject({
+      name: 'Send Message',
+      parentId: -1,
+      position: { x: 420, y: 180 },
+      data: { payload: [{ type: 'text', text: '' }] },
+    })
+    expect(workflow[0].description).toBeUndefined()
+    expect(() => toFlowElements(workflow)).not.toThrow()
+  })
+
+  it('rejects records without usable IDs or supported node types', () => {
+    expect(() => normalizeWorkflow([{ type: 'sendMessage', data: {} }])).toThrow(/Invalid/)
+    expect(() => normalizeWorkflow([{ id: 'x', type: 'unknown', data: {} }])).toThrow(/Invalid/)
+    expect(() => normalizeWorkflow([{ ...source[0] }, { ...source[0] }])).toThrow(/Duplicate/)
   })
 
   it('builds a graph edge for each known parent', () => {
