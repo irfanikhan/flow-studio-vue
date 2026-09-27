@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import CreateNodeModal from './CreateNodeModal.vue'
+import CreateNodeModal from '../CreateNodeModal.vue'
 
 describe('CreateNodeModal', () => {
   it('requires fields and emits a complete node after submission', async () => {
@@ -32,5 +32,27 @@ describe('CreateNodeModal', () => {
       parentId: 'parent',
       position: { x: 100, y: 510 },
     })
+  })
+
+  it('keeps keyboard focus inside the dialog and restores its opener', async () => {
+    const opener = document.createElement('button')
+    const host = document.createElement('div')
+    document.body.append(opener, host)
+    opener.focus()
+    const wrapper = mount(CreateNodeModal, { props: { workflow: [] }, attachTo: host })
+
+    expect(document.activeElement).toBe(wrapper.get('#new-title').element)
+    wrapper.get('[aria-label="Close"]').element.focus()
+    await wrapper.get('.create-modal').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(wrapper.get('button[type="submit"]').element)
+    await wrapper.get('.create-modal').trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(wrapper.get('[aria-label="Close"]').element)
+    await wrapper.get('.create-modal').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('close')).toHaveLength(1)
+
+    wrapper.unmount()
+    expect(document.activeElement).toBe(opener)
+    host.remove()
+    opener.remove()
   })
 })

@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, useTemplateRef } from 'vue'
 import { X, Plus, Send, MessageSquareText, CalendarClock } from 'lucide-vue-next'
 import { createNode, getNewNodePosition } from '../lib/workflow'
 
@@ -9,6 +9,9 @@ const props = defineProps({
   busy: Boolean,
 })
 const emit = defineEmits(['close', 'create'])
+const dialog = useTemplateRef('createDialog')
+const titleInput = useTemplateRef('newTitle')
+let returnFocusTo = null
 const form = reactive({
   title: '',
   description: '',
@@ -33,6 +36,67 @@ const types = [
 ]
 
 /**
+ * Move focus into the dialog and remember the control that opened it.
+ *
+ * @returns {void}
+ */
+function focusDialog() {
+  returnFocusTo = document.activeElement
+  titleInput.value?.focus()
+}
+
+/**
+ * Restore keyboard focus to the control that opened the dialog.
+ *
+ * @returns {void}
+ */
+function restoreFocus() {
+  if (returnFocusTo?.isConnected) {
+    returnFocusTo.focus()
+  }
+}
+
+/**
+ * Keep Tab within the dialog and close only the dialog on Escape.
+ *
+ * @param {KeyboardEvent} event - Dialog keyboard event.
+ * @returns {void}
+ */
+function handleDialogKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    emit('close')
+
+    return
+  }
+  if (event.key !== 'Tab') {
+    return
+  }
+
+  const focusable = Array.from(
+    dialog.value?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    ) ?? [],
+  )
+  const first = focusable[0]
+  const last = focusable.at(-1)
+  if (!first) {
+    event.preventDefault()
+    dialog.value?.focus()
+
+    return
+  }
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+/**
  * Validate the form and create a node near the end of the visible flow.
  *
  * @returns {void}
@@ -45,11 +109,22 @@ function submit() {
   const position = getNewNodePosition(props.workflow, form.parentId || -1)
   emit('create', createNode({ ...form, parentId: form.parentId || -1, position }))
 }
+
+onMounted(focusDialog)
+onUnmounted(restoreFocus)
 </script>
 
 <template>
   <div class="modal-backdrop" @click.self="emit('close')">
-    <div class="create-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
+    <div
+      ref="createDialog"
+      class="create-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-title"
+      tabindex="-1"
+      @keydown="handleDialogKeydown"
+    >
       <div class="modal-header">
         <div>
           <span class="eyebrow">BUILD YOUR WORKFLOW</span>
@@ -79,6 +154,7 @@ function submit() {
           <label class="field-label" for="new-title">Title</label
           ><input
             id="new-title"
+            ref="newTitle"
             v-model.trim="form.title"
             class="text-input"
             maxlength="80"

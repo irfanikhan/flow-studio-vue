@@ -31,6 +31,7 @@ import WorkflowNode from './components/WorkflowNode.vue'
 import NodeDrawer from './components/NodeDrawer.vue'
 import CreateNodeModal from './components/CreateNodeModal.vue'
 import { fetchWorkflow, saveWorkflow, resetWorkflow } from './lib/repository'
+import { clonePlain } from './lib/clonePlain'
 import { toFlowElements, replaceNode, deleteNode, isEditable, NODE_TYPES } from './lib/workflow'
 import { useUiStore } from './stores/ui'
 
@@ -87,7 +88,7 @@ const icons = {
  * @returns {object[]} A plain snapshot suitable for undo history.
  */
 function snapshotWorkflow() {
-  return JSON.parse(JSON.stringify(workflow.value))
+  return clonePlain(workflow.value)
 }
 
 /**
@@ -362,8 +363,9 @@ async function reset() {
 function onKeydown(event) {
   const editable = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
   if (event.key === 'Escape') {
-    createOpen.value = false
-    if (editableSelectedNode.value) {
+    if (createOpen.value) {
+      createOpen.value = false
+    } else if (editableSelectedNode.value) {
       router.push('/')
     }
 
@@ -559,7 +561,8 @@ onUnmounted(() => {
             @node-click="onNodeClick"
             @node-drag-stop="onNodeDragStop"
             @nodes-initialized="onNodesInitialized"
-            ><template #node-workflow="nodeProps"><WorkflowNode v-bind="nodeProps" /></template
+            ><template #node-workflow="nodeProps"
+              ><WorkflowNode v-bind="nodeProps" @activate="openNode(nodeProps.id)" /></template
             ><Background pattern-color="#dfe5ef" :gap="20" :size="1" /><Controls
               position="bottom-left"
               :show-interactive="false"

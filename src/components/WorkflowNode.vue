@@ -15,6 +15,7 @@ const props = defineProps({
   data: { type: Object, required: true },
   selected: Boolean,
 })
+const emit = defineEmits(['activate'])
 
 const icon = computed(
   () =>
@@ -34,6 +35,19 @@ const tone = computed(() =>
         props.data.kind
       ],
 )
+
+/**
+ * Open the details for an editable node when activated from the keyboard.
+ *
+ * @returns {void}
+ */
+function activate() {
+  if (props.data.locked) {
+    return
+  }
+
+  emit('activate')
+}
 </script>
 
 <template>
@@ -53,7 +67,10 @@ const tone = computed(() =>
     class="workflow-node"
     :class="[`tone-${tone}`, { 'is-selected': selected }]"
     :aria-label="`${data.label} node`"
-    tabindex="0"
+    :role="data.locked ? undefined : 'button'"
+    :tabindex="data.locked ? -1 : 0"
+    @keydown.enter.stop.prevent="activate"
+    @keydown.space.stop.prevent="activate"
   >
     <Handle v-if="data.kind !== 'trigger'" type="target" :position="Position.Top" />
     <div class="node-topline">
