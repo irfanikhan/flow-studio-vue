@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import NodeDrawer from './NodeDrawer.vue'
+import { getDescription } from '../lib/workflow'
 
 const message = {
   id: 'message',
@@ -78,5 +79,35 @@ describe('NodeDrawer', () => {
     expect(wrapper.get('input[aria-label="Monday opening time"]').element.value).toBe('08:00')
     expect(wrapper.get('input[aria-label="Tuesday opening time"]').element.value).toBe('11:00')
     expect(wrapper.get('input[aria-label="Wednesday opening time"]').element.value).toBe('09:00')
+  })
+
+  it('removes a comment without leaving its old text on the canvas', async () => {
+    const node = {
+      id: 'comment',
+      name: 'Internal note',
+      type: 'addComment',
+      data: { comment: 'Old internal note' },
+    }
+    const wrapper = mount(NodeDrawer, { props: { node } })
+    await wrapper.get('.section-heading .text-button').trigger('click')
+    await wrapper.get('.save-button').trigger('click')
+    const updated = wrapper.emitted('save')?.[0]?.[0]
+
+    expect(updated.data.comment).toBe('')
+    expect(getDescription(updated)).toBe('No internal comment')
+  })
+
+  it('allows a comment to be cleared from the text field', async () => {
+    const node = {
+      id: 'comment',
+      name: 'Internal note',
+      type: 'addComment',
+      data: { comment: 'Old internal note' },
+    }
+    const wrapper = mount(NodeDrawer, { props: { node } })
+    await wrapper.get('#node-comment').setValue('')
+    await wrapper.get('.save-button').trigger('click')
+
+    expect(wrapper.emitted('save')?.[0]?.[0].data.comment).toBe('')
   })
 })
