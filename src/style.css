@@ -894,6 +894,9 @@ button:disabled {
   color: #a0a9b9;
   margin: -10px 0 16px;
 }
+.section-heading + .section-help {
+  margin-top: 8px;
+}
 .schedule-list {
   display: flex;
   flex-direction: column;
