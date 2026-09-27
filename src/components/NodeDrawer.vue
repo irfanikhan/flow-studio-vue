@@ -136,12 +136,33 @@ function removePayload(item) {
 }
 
 /**
+ * Clear the internal comment and replace any description copied from it.
+ *
+ * @returns {void}
+ */
+function removeComment() {
+  const originalComment = props.node.data?.comment?.trim() ?? ''
+  form.data.comment = ''
+  if (form.description.trim() === originalComment) {
+    form.description = 'No internal comment'
+  }
+  error.value = ''
+}
+
+/**
  * Validate node fields and emit the complete updated record.
  *
  * @returns {void}
  */
 function save() {
   error.value = ''
+  if (props.node.type === 'addComment') {
+    if (form.data.comment?.trim()) {
+      form.data.comment = form.data.comment.trim()
+    } else {
+      removeComment()
+    }
+  }
   if (!form.name.trim()) {
     error.value = 'A title is required.'
 
@@ -154,11 +175,6 @@ function save() {
   }
   if (props.node.type === 'sendMessage' && texts.value.some((item) => !item.text.trim())) {
     error.value = 'Message text cannot be empty.'
-
-    return
-  }
-  if (props.node.type === 'addComment' && !form.data.comment?.trim()) {
-    error.value = 'A comment is required.'
 
     return
   }
@@ -289,7 +305,12 @@ function removeNode() {
       </div>
 
       <div v-if="node.type === 'addComment'" class="drawer-section">
-        <h3>Internal comment</h3>
+        <div class="section-heading">
+          <h3>Internal comment</h3>
+          <button v-if="form.data.comment?.trim()" class="text-button" @click="removeComment">
+            <Trash2 :size="15" /> Remove comment
+          </button>
+        </div>
         <p class="section-help">Visible to your team in the conversation.</p>
         <textarea
           id="node-comment"

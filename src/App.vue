@@ -362,8 +362,9 @@ async function reset() {
 function onKeydown(event) {
   const editable = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
   if (event.key === 'Escape') {
-    createOpen.value = false
-    if (editableSelectedNode.value) {
+    if (createOpen.value) {
+      createOpen.value = false
+    } else if (editableSelectedNode.value) {
       router.push('/')
     }
 
@@ -559,7 +560,8 @@ onUnmounted(() => {
             @node-click="onNodeClick"
             @node-drag-stop="onNodeDragStop"
             @nodes-initialized="onNodesInitialized"
-            ><template #node-workflow="nodeProps"><WorkflowNode v-bind="nodeProps" /></template
+            ><template #node-workflow="nodeProps"
+              ><WorkflowNode v-bind="nodeProps" @activate="openNode(nodeProps.id)" /></template
             ><Background pattern-color="#dfe5ef" :gap="20" :size="1" /><Controls
               position="bottom-left"
               :show-interactive="false"
